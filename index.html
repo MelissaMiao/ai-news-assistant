@@ -5,34 +5,100 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Phase 0 deployment smoke test for the AI News Assistant."
+      content="A focused briefing of current artificial intelligence news from three trusted RSS feeds."
     />
-    <title>AI News Briefing — Deployment Check</title>
+    <title>AI News Briefing</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <main class="page-shell">
-      <section class="status-card" aria-labelledby="page-title">
-        <div class="status-badge">
-          <span class="status-dot" aria-hidden="true"></span>
-          Deployment signal received
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href="#top" aria-label="AI News Briefing home">
+          <span class="brand-mark" aria-hidden="true">AI</span>
+          <span>News Briefing</span>
+        </a>
+        <p class="phase-label"><span aria-hidden="true"></span> Phase 1 · Live</p>
+      </div>
+    </header>
+
+    <main id="top" class="page-shell">
+      <section class="hero" aria-labelledby="page-title">
+        <p class="eyebrow">Your signal through the noise</p>
+        <h1 id="page-title">AI news,<br /><em>sharpened.</em></h1>
+        <p class="hero-copy">
+          Scan the latest artificial intelligence reporting from three trusted
+          sources, then go deeper on the story that matters.
+        </p>
+        <div class="source-list" aria-label="News sources">
+          <span>WIRED</span>
+          <span>TechCrunch</span>
+          <span>VentureBeat</span>
+        </div>
+      </section>
+
+      <section class="news-radar" aria-labelledby="news-radar-title">
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">News Radar</p>
+            <h2 id="news-radar-title">Today’s AI signals</h2>
+          </div>
+          <p class="section-note">RSS discovers. Deep Read retrieves.</p>
         </div>
 
-        <p class="eyebrow">AI News Briefing · Phase 0</p>
-        <h1 id="page-title">Breaking News:<br />Your Website Exists.</h1>
-        <p class="intro">
-          The first checkpoint is live. The newsroom machinery comes next.
+        <div class="controls">
+          <button id="load-news" class="primary-button" type="button">
+            <span class="button-dot" aria-hidden="true"></span>
+            Load Latest News
+          </button>
+          <label class="filter-control" for="news-filter">
+            <span>Filter loaded stories</span>
+            <input
+              id="news-filter"
+              type="search"
+              placeholder="Try “robotics” or “OpenAI”"
+              autocomplete="off"
+              disabled
+            />
+          </label>
+        </div>
+
+        <p id="news-status" class="news-status" role="status" aria-live="polite">
+          Ready when you are. Load the latest headlines to begin.
         </p>
 
-        <div class="pipeline" aria-label="Deployment pipeline status">
-          <span>Codex</span>
-          <span class="arrow" aria-hidden="true">→</span>
-          <span>GitHub</span>
-          <span class="arrow" aria-hidden="true">→</span>
-          <span>Vercel</span>
-          <strong>ALIVE</strong>
+        <section
+          id="deep-read-panel"
+          class="deep-read-panel"
+          aria-labelledby="deep-read-title"
+          aria-live="polite"
+        >
+          <div class="deep-read-empty">
+            <p class="panel-kicker">Deep Read</p>
+            <h3 id="deep-read-title">Choose a story for a cleaner read.</h3>
+            <p>
+              Firecrawl retrieves only the article you select. One page, one click,
+              one result at a time.
+            </p>
+          </div>
+        </section>
+
+        <div class="results-heading">
+          <h3>Latest stories</h3>
+          <p id="result-count">No stories loaded</p>
+        </div>
+        <div id="article-list" class="article-grid" aria-live="polite">
+          <div class="empty-state">
+            <p class="empty-number">00</p>
+            <p>Your briefing is waiting above.</p>
+          </div>
         </div>
       </section>
     </main>
+
+    <footer class="site-footer">
+      <p>Discovery by RSS <span aria-hidden="true">·</span> Retrieval by Firecrawl</p>
+    </footer>
+
+    <script type="module" src="app.js"></script>
   </body>
 </html>
