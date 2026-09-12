@@ -4,6 +4,11 @@ const statusElement = document.querySelector("#news-status");
 const articleList = document.querySelector("#article-list");
 const resultCount = document.querySelector("#result-count");
 const deepReadPanel = document.querySelector("#deep-read-panel");
+const explorerForm = document.querySelector("#web-explorer-form");
+const explorerInput = document.querySelector("#explorer-url");
+const explorerButton = document.querySelector("#scrape-page");
+const explorerStatus = document.querySelector("#explorer-status");
+const explorerResult = document.querySelector("#explorer-result");
 
 const state = {
   articles: [],
@@ -20,6 +25,11 @@ function createElement(tag, className, text) {
 function setStatus(message, tone = "neutral") {
   statusElement.textContent = message;
   statusElement.dataset.tone = tone;
+}
+
+function setExplorerStatus(message, tone = "neutral") {
+  explorerStatus.textContent = message;
+  explorerStatus.dataset.tone = tone;
 }
 
 function formatDate(value) {
@@ -156,6 +166,70 @@ function renderDeepReadError(article, message) {
   deepReadPanel.removeAttribute("aria-busy");
 }
 
+function explorerHeading(text) {
+  const heading = createElement("h3", "", text);
+  heading.id = "explorer-result-title";
+  return heading;
+}
+
+function renderExplorerLoading() {
+  const wrapper = createElement("div");
+  wrapper.append(
+    createElement("p", "panel-kicker", "Web Explorer · Retrieving"),
+    explorerHeading("Reading the selected page…"),
+    createElement("div", "explorer-loading-line"),
+    createElement("div", "explorer-loading-line short"),
+  );
+  explorerResult.replaceChildren(wrapper);
+  explorerResult.setAttribute("aria-busy", "true");
+}
+
+function renderExplorerResult(result) {
+  const wrapper = createElement("div");
+  const header = createElement("div", "explorer-result-header");
+  header.append(
+    createElement("p", "panel-kicker", "Web Explorer · Retrieved"),
+    createElement("span", "explorer-domain", result.domain || "Web page"),
+  );
+
+  const sourceUrl = createExternalLink(
+    result.url || explorerInput.value.trim(),
+    result.url || explorerInput.value.trim(),
+    "explorer-source-url",
+  );
+  wrapper.append(header, explorerHeading(result.title || "Retrieved web page"), sourceUrl);
+
+  if (result.description) {
+    wrapper.append(createElement("p", "explorer-description", result.description));
+  }
+
+  wrapper.append(
+    createElement(
+      "div",
+      "explorer-content",
+      result.content || "Firecrawl returned no readable page content.",
+    ),
+    createExternalLink(
+      "Open Original Page ↗",
+      result.url || explorerInput.value.trim(),
+      "text-link",
+    ),
+  );
+  explorerResult.replaceChildren(wrapper);
+  explorerResult.removeAttribute("aria-busy");
+}
+
+function renderExplorerError(message) {
+  const wrapper = createElement("div");
+  wrapper.append(
+    createElement("p", "panel-kicker", "Web Explorer · Could not retrieve"),
+    explorerHeading("That page could not be explored."),
+    createElement("p", "explorer-error-copy", message),
+  );
+  explorerResult.replaceChildren(wrapper);
+  explorerResult.removeAttribute("aria-busy");
+}
+
 async function readJson(response) {
   try {
     return await response.json();
@@ -193,6 +267,48 @@ async function loadDeepRead(article, button) {
   } finally {
     button.disabled = false;
     button.textContent = "Deep Read";
+  }
+}
+
+async function explorePage(event) {
+  event.preventDefault();
+  if (explorerButton.disabled) return;
+
+  const url = explorerInput.value.trim();
+  if (!url) {
+    const message = "Enter one public webpage URL before scraping.";
+    setExplorerStatus(message, "error");
+    renderExplorerError(message);
+    explorerInput.focus();
+    return;
+  }
+
+  explorerButton.disabled = true;
+  explorerButton.textContent = "Scraping…";
+  setExplorerStatus("Contacting Firecrawl for this page…");
+  renderExplorerLoading();
+
+  try {
+    const response = await fetch("/api/scrape", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    });
+    const payload = await readJson(response);
+
+    if (!response.ok) {
+      throw new Error(payload.error || "This page is temporarily unavailable.");
+    }
+
+    renderExplorerResult(payload);
+    setExplorerStatus(`Retrieved one page from ${payload.domain || "the web"}.`);
+  } catch (error) {
+    const message = error.message || "Web Explorer could not retrieve this page.";
+    renderExplorerError(message);
+    setExplorerStatus(message, "error");
+  } finally {
+    explorerButton.disabled = false;
+    explorerButton.textContent = "Scrape Page";
   }
 }
 
@@ -248,3 +364,4 @@ async function loadLatestNews() {
 
 loadButton.addEventListener("click", loadLatestNews);
 filterInput.addEventListener("input", renderArticles);
+explorerForm.addEventListener("submit", explorePage);

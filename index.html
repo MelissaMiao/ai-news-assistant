@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="A focused briefing of current artificial intelligence news from three trusted RSS feeds."
+      content="A focused AI news briefing with RSS discovery, Firecrawl Deep Read, and single-page web exploration."
     />
     <title>AI News Briefing</title>
     <link rel="stylesheet" href="style.css" />
@@ -17,7 +17,7 @@
           <span class="brand-mark" aria-hidden="true">AI</span>
           <span>News Briefing</span>
         </a>
-        <p class="phase-label"><span aria-hidden="true"></span> Phase 1 · Live</p>
+        <p class="phase-label"><span aria-hidden="true"></span> Phase 2 · Live</p>
       </div>
     </header>
 
@@ -92,6 +92,54 @@
             <p>Your briefing is waiting above.</p>
           </div>
         </div>
+      </section>
+
+      <section class="web-explorer" aria-labelledby="web-explorer-title">
+        <div class="explorer-heading">
+          <div>
+            <p class="section-kicker">Web Explorer</p>
+            <h2 id="web-explorer-title">Explore any web page.</h2>
+          </div>
+          <p class="explorer-intro">
+            Paste one public page URL. Firecrawl will retrieve a focused excerpt—no
+            crawling, no background jobs, one page per click.
+          </p>
+        </div>
+
+        <form id="web-explorer-form" class="explorer-form" novalidate>
+          <label class="explorer-url-control" for="explorer-url">
+            <span>Public webpage URL</span>
+            <input
+              id="explorer-url"
+              name="url"
+              type="url"
+              inputmode="url"
+              aria-describedby="explorer-status"
+              placeholder="https://example.com/article"
+              autocomplete="url"
+            />
+          </label>
+          <button id="scrape-page" class="explorer-button" type="submit">
+            Scrape Page
+          </button>
+        </form>
+
+        <p id="explorer-status" class="explorer-status" role="status" aria-live="polite">
+          Ready for one public webpage.
+        </p>
+
+        <section
+          id="explorer-result"
+          class="explorer-result"
+          aria-labelledby="explorer-result-title"
+          aria-live="polite"
+        >
+          <div class="explorer-empty">
+            <p class="panel-kicker">Single-page retrieval</p>
+            <h3 id="explorer-result-title">Your result will appear here.</h3>
+            <p>Enter a webpage above to inspect a clean, limited excerpt.</p>
+          </div>
+        </section>
       </section>
     </main>
 

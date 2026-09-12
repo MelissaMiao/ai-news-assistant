@@ -64,20 +64,20 @@ function isPrivateHostname(hostname) {
 
 function validatePublicUrl(value) {
   if (typeof value !== "string" || !value.trim()) {
-    return { error: "Choose an article URL to Deep Read." };
+    return { error: "Enter a public webpage URL." };
   }
 
   try {
     const url = new URL(value.trim());
     if (!["http:", "https:"].includes(url.protocol)) {
-      return { error: "Only http:// or https:// web pages can be scraped." };
+      return { error: "Only http:// or https:// public web pages can be retrieved." };
     }
     if (url.username || url.password || isPrivateHostname(url.hostname)) {
-      return { error: "Deep Read accepts public web pages only." };
+      return { error: "Only public web pages can be retrieved." };
     }
     return { url };
   } catch {
-    return { error: "The selected article does not have a valid web URL." };
+    return { error: "Enter a valid public webpage URL." };
   }
 }
 
@@ -177,7 +177,7 @@ export default async function handler(request, response) {
   const apiKey = process.env.FIRECRAWL_API_KEY;
   if (!apiKey) {
     return response.status(503).json({
-      error: "Deep Read is not configured yet. Add FIRECRAWL_API_KEY on the server.",
+      error: "Page retrieval is not configured yet. Add FIRECRAWL_API_KEY on the server.",
     });
   }
 
@@ -206,23 +206,20 @@ export default async function handler(request, response) {
     if (isBlockedPage(payload.data)) {
       return response.status(502).json({
         error:
-          "This publisher blocked automated reading with a verification page. Please retry once or open the original article.",
+          "This publisher blocked automated reading with a verification page. Please retry once or open the original page.",
       });
     }
 
     const metadata = payload.data.metadata || {};
-    const resultUrl = metadata.sourceURL || metadata.url || validation.url.href;
-    let resultDomain = validation.url.hostname;
-    try {
-      resultDomain = new URL(resultUrl).hostname;
-    } catch {
-      // Keep the validated request hostname as a safe fallback.
-    }
+    const metadataUrl = metadata.sourceURL || metadata.url;
+    const validatedResult = validatePublicUrl(metadataUrl);
+    const resultUrl = validatedResult.url?.href || validation.url.href;
+    const resultDomain = validatedResult.url?.hostname || validation.url.hostname;
 
     const content = limitedContent(payload.data.markdown, validation.url);
     if (!content) {
       return response.status(502).json({
-        error: "Deep Read could not find readable article content. Please open the original article.",
+        error: "Page retrieval could not find readable content. Please open the original page.",
       });
     }
 
@@ -236,8 +233,8 @@ export default async function handler(request, response) {
   } catch (error) {
     const message =
       error?.name === "AbortError"
-        ? "Deep Read timed out. Please try again."
-        : "Deep Read could not reach Firecrawl. Please try again.";
+        ? "Page retrieval timed out. Please try again."
+        : "Page retrieval could not reach Firecrawl. Please try again.";
     return response.status(502).json({ error: message });
   } finally {
     clearTimeout(timeout);

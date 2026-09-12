@@ -50,6 +50,29 @@ async function runScrape(url, payload, onRequest = () => {}) {
   return response;
 }
 
+async function runValidation(body) {
+  const response = responseRecorder();
+  await handler({ method: "POST", body }, response);
+  return response;
+}
+
+test("a missing Web Explorer URL gets a readable 400 response", async () => {
+  const response = await runValidation({ url: "" });
+
+  assert.equal(response.statusCode, 400);
+  assert.equal(response.body.error, "Enter a public webpage URL.");
+});
+
+test("non-web and private URLs are rejected", async () => {
+  const nonWebResponse = await runValidation({ url: "ftp://example.com/file" });
+  const privateResponse = await runValidation({ url: "http://localhost:3000/private" });
+
+  assert.equal(nonWebResponse.statusCode, 400);
+  assert.match(nonWebResponse.body.error, /http:\/\/ or https:\/\//i);
+  assert.equal(privateResponse.statusCode, 400);
+  assert.match(privateResponse.body.error, /public web pages/i);
+});
+
 test("TechCrunch uses enhanced proxy mode", async () => {
   let requestBody;
   const response = await runScrape(
@@ -105,6 +128,20 @@ test("ordinary publishers retain automatic proxy behavior", async () => {
 
   assert.equal(response.statusCode, 200);
   assert.equal(requestBody.proxy, undefined);
+});
+
+test("unsafe metadata URLs fall back to the validated request URL", async () => {
+  const response = await runScrape("https://example.com/article", {
+    success: true,
+    data: {
+      markdown: "Readable article content.",
+      metadata: { title: "Example", sourceURL: "javascript:alert(1)" },
+    },
+  });
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.url, "https://example.com/article");
+  assert.equal(response.body.domain, "example.com");
 });
 
 test("TechCrunch boilerplate and markdown links are removed", async () => {
