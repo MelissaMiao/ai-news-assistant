@@ -9,6 +9,19 @@ const explorerInput = document.querySelector("#explorer-url");
 const explorerButton = document.querySelector("#scrape-page");
 const explorerStatus = document.querySelector("#explorer-status");
 const explorerResult = document.querySelector("#explorer-result");
+const jobScoutForm = document.querySelector("#job-scout-form");
+const jobSourceInputs = Array.from(document.querySelectorAll("[id^='job-source-']")).filter(
+  (element) => element.matches("input"),
+);
+const jobSourceStatuses = jobSourceInputs.map((_, index) =>
+  document.querySelector(`#job-source-status-${index + 1}`),
+);
+const scanJobsButton = document.querySelector("#scan-jobs");
+const clearJobsButton = document.querySelector("#clear-jobs");
+const jobScoutStatus = document.querySelector("#job-scout-status");
+const jobResults = document.querySelector("#job-results");
+const jobResultCount = document.querySelector("#job-result-count");
+const jobResultList = document.querySelector("#job-result-list");
 
 const state = {
   articles: [],
@@ -30,6 +43,18 @@ function setStatus(message, tone = "neutral") {
 function setExplorerStatus(message, tone = "neutral") {
   explorerStatus.textContent = message;
   explorerStatus.dataset.tone = tone;
+}
+
+function setJobScoutStatus(message, tone = "neutral") {
+  jobScoutStatus.textContent = message;
+  jobScoutStatus.dataset.tone = tone;
+}
+
+function setJobSourceStatus(index, label, state = "waiting", detail = "") {
+  const status = jobSourceStatuses[index];
+  status.textContent = label;
+  status.dataset.state = state;
+  status.title = detail;
 }
 
 function formatDate(value) {
@@ -312,6 +337,194 @@ async function explorePage(event) {
   }
 }
 
+function renderJobEmpty(message = "Your evidence-backed shortlist will appear here.") {
+  const empty = createElement("div", "job-empty");
+  empty.append(
+    createElement("p", "empty-number", "05"),
+    createElement("p", "", message),
+  );
+  jobResultList.replaceChildren(empty);
+  jobResultCount.textContent = "No results yet";
+}
+
+function renderJobLoading() {
+  const loading = createElement("div", "job-loading");
+  loading.append(
+    createElement("p", "panel-kicker", "Scanning exact pages"),
+    createElement("h4", "", "Extracting and ranking visible opportunities…"),
+    createElement("div", "job-loading-line"),
+    createElement("div", "job-loading-line short"),
+  );
+  jobResultList.replaceChildren(loading);
+  jobResultCount.textContent = "Scanning";
+  jobResults.setAttribute("aria-busy", "true");
+}
+
+function createJobMetaItem(label, value) {
+  const item = createElement("span", "job-meta-item");
+  item.append(createElement("strong", "", label), document.createTextNode(value));
+  return item;
+}
+
+function renderJobs(jobs, message) {
+  if (!jobs.length) {
+    renderJobEmpty(message);
+    jobResultCount.textContent = "0 opportunities";
+    jobResults.removeAttribute("aria-busy");
+    return;
+  }
+
+  const cards = jobs.map((job) => {
+    const card = createElement("article", "job-card");
+    const header = createElement("div", "job-card-header");
+    const rank = createElement("p", "job-rank", String(job.rank).padStart(2, "0"));
+    const headingGroup = createElement("div", "job-title-group");
+    headingGroup.append(
+      createElement("p", "job-employer", job.employer),
+      createElement("h4", "", job.title),
+    );
+    header.append(rank, headingGroup);
+
+    const meta = createElement("div", "job-meta");
+    meta.append(
+      createJobMetaItem("Location", job.location),
+      createJobMetaItem("Source", job.sourceDomain),
+      createJobMetaItem("Type", job.employmentType),
+      createJobMetaItem("Posted", job.postedDate),
+    );
+
+    const evidence = createElement("ul", "job-evidence");
+    job.reasons.slice(0, 3).forEach((reason) => {
+      const item = createElement("li");
+      item.append(
+        createElement("strong", "", `${reason.heading}: `),
+        document.createTextNode(reason.text),
+      );
+      evidence.append(item);
+    });
+
+    card.append(
+      header,
+      meta,
+      evidence,
+      createExternalLink("Open Job Posting ↗", job.jobUrl, "job-link"),
+    );
+    return card;
+  });
+
+  jobResultList.replaceChildren(...cards);
+  jobResultCount.textContent = `${jobs.length} opportunit${jobs.length === 1 ? "y" : "ies"}`;
+  jobResults.removeAttribute("aria-busy");
+}
+
+function sourceStatusLabel(state) {
+  return {
+    extracted: "Extracted",
+    no_jobs_found: "No jobs found",
+    could_not_extract: "Could not extract",
+  }[state] || "Waiting";
+}
+
+function updateSourceResults(sources) {
+  const byUrl = new Map(sources.map((source) => [source.url, source]));
+  jobSourceInputs.forEach((input, index) => {
+    if (!input.value.trim()) {
+      setJobSourceStatus(index, "Waiting");
+      return;
+    }
+    let normalized = input.value.trim();
+    try {
+      normalized = new URL(normalized).href;
+    } catch {
+      // Server validation provides the user-facing malformed URL message.
+    }
+    const source = byUrl.get(normalized);
+    if (source) {
+      setJobSourceStatus(
+        index,
+        sourceStatusLabel(source.status),
+        source.status,
+        source.message,
+      );
+    }
+  });
+}
+
+function enteredJobUrls() {
+  return jobSourceInputs.map((input) => input.value.trim()).filter(Boolean);
+}
+
+async function scanJobs(event) {
+  event.preventDefault();
+  if (scanJobsButton.disabled) return;
+
+  const urls = enteredJobUrls();
+  if (!jobSourceInputs[0].value.trim() || urls.length === 0) {
+    setJobScoutStatus("Job Source 1 is required.", "error");
+    jobSourceInputs[0].focus();
+    return;
+  }
+
+  scanJobsButton.disabled = true;
+  clearJobsButton.disabled = true;
+  scanJobsButton.textContent = "Scanning…";
+  jobSourceInputs.forEach((input, index) => {
+    setJobSourceStatus(
+      index,
+      input.value.trim() ? "Scanning" : "Waiting",
+      input.value.trim() ? "scanning" : "waiting",
+    );
+  });
+  setJobScoutStatus(
+    `Scanning ${urls.length} exact public page${urls.length === 1 ? "" : "s"}…`,
+  );
+  renderJobLoading();
+
+  try {
+    const response = await fetch("/api/jobs/scan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ urls }),
+    });
+    const payload = await readJson(response);
+    if (!response.ok) {
+      throw new Error(payload.error || "Junior Job Scout is temporarily unavailable.");
+    }
+
+    updateSourceResults(Array.isArray(payload.sources) ? payload.sources : []);
+    renderJobs(Array.isArray(payload.jobs) ? payload.jobs : [], payload.message);
+    setJobScoutStatus(
+      payload.message || "Job scan complete.",
+      payload.allFailed ? "error" : "neutral",
+    );
+  } catch (error) {
+    const message = error.message || "Junior Job Scout could not complete this scan.";
+    jobSourceInputs.forEach((input, index) => {
+      setJobSourceStatus(
+        index,
+        input.value.trim() ? "Could not extract" : "Waiting",
+        input.value.trim() ? "could_not_extract" : "waiting",
+      );
+    });
+    renderJobEmpty(message);
+    jobResultCount.textContent = "Scan incomplete";
+    jobResults.removeAttribute("aria-busy");
+    setJobScoutStatus(message, "error");
+  } finally {
+    scanJobsButton.disabled = false;
+    clearJobsButton.disabled = false;
+    scanJobsButton.textContent = "Find Junior Opportunities";
+  }
+}
+
+function clearJobResults() {
+  jobScoutForm.reset();
+  jobSourceStatuses.forEach((_, index) => setJobSourceStatus(index, "Waiting"));
+  setJobScoutStatus("Ready to scan one to five public job pages.");
+  renderJobEmpty();
+  jobSourceInputs[0].focus();
+}
+
 function restoreLoadButton() {
   const dot = createElement("span", "button-dot");
   dot.setAttribute("aria-hidden", "true");
@@ -365,3 +578,5 @@ async function loadLatestNews() {
 loadButton.addEventListener("click", loadLatestNews);
 filterInput.addEventListener("input", renderArticles);
 explorerForm.addEventListener("submit", explorePage);
+jobScoutForm.addEventListener("submit", scanJobs);
+clearJobsButton.addEventListener("click", clearJobResults);

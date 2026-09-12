@@ -42,6 +42,15 @@ function isPrivateHostname(hostname) {
   }
 
   if (
+    (!host.includes(".") && !host.includes(":")) ||
+    [".internal", ".home", ".lan", ".test", ".invalid"].some((suffix) =>
+      host.endsWith(suffix),
+    )
+  ) {
+    return true;
+  }
+
+  if (
     host === "::1" ||
     (host.includes(":") &&
       (host.startsWith("fc") || host.startsWith("fd") || host.startsWith("fe80:")))
@@ -55,14 +64,17 @@ function isPrivateHostname(hostname) {
   return (
     parts[0] === 10 ||
     parts[0] === 127 ||
+    (parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127) ||
     (parts[0] === 169 && parts[1] === 254) ||
     (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) ||
     (parts[0] === 192 && parts[1] === 168) ||
+    (parts[0] === 198 && (parts[1] === 18 || parts[1] === 19)) ||
+    parts[0] >= 224 ||
     parts[0] === 0
   );
 }
 
-function validatePublicUrl(value) {
+export function validatePublicUrl(value) {
   if (typeof value !== "string" || !value.trim()) {
     return { error: "Enter a public webpage URL." };
   }
@@ -121,7 +133,7 @@ function limitedContent(value, url) {
   return `${clean.slice(0, MAX_CONTENT_LENGTH).trimEnd()}\n\n[…]`;
 }
 
-function isBlockedPage(data) {
+export function isBlockedPage(data) {
   const metadata = data?.metadata || {};
   const pageText = [
     metadata.title,

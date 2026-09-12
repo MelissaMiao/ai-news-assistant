@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="A focused AI news briefing with RSS discovery, Firecrawl Deep Read, and single-page web exploration."
+      content="AI news discovery, focused web exploration, and evidence-based junior job scouting with Firecrawl."
     />
     <title>AI News Briefing</title>
     <link rel="stylesheet" href="style.css" />
@@ -17,7 +17,7 @@
           <span class="brand-mark" aria-hidden="true">AI</span>
           <span>News Briefing</span>
         </a>
-        <p class="phase-label"><span aria-hidden="true"></span> Phase 2 · Live</p>
+        <p class="phase-label"><span aria-hidden="true"></span> Phase 4 · Live</p>
       </div>
     </header>
 
@@ -138,6 +138,85 @@
             <p class="panel-kicker">Single-page retrieval</p>
             <h3 id="explorer-result-title">Your result will appear here.</h3>
             <p>Enter a webpage above to inspect a clean, limited excerpt.</p>
+          </div>
+        </section>
+      </section>
+
+      <section class="job-scout" aria-labelledby="job-scout-title">
+        <div class="job-scout-heading">
+          <div>
+            <p class="section-kicker">Junior Job Scout</p>
+            <h2 id="job-scout-title">Find a stronger place to start.</h2>
+          </div>
+          <p class="job-scout-intro">
+            Add up to five public job-listing pages. We scan only those pages,
+            then rank evidence-backed early-career opportunities.
+          </p>
+        </div>
+
+        <form id="job-scout-form" class="job-scout-form" novalidate>
+          <div class="job-source-grid">
+            <label class="job-source-control" for="job-source-1">
+              <span class="job-source-label">
+                Job Source 1 URL
+                <span id="job-source-status-1" class="source-status" data-state="waiting">Waiting</span>
+              </span>
+              <input id="job-source-1" name="job-source-1" type="url" inputmode="url" placeholder="https://company.com/careers" autocomplete="url" required />
+            </label>
+            <label class="job-source-control" for="job-source-2">
+              <span class="job-source-label">
+                Job Source 2 URL
+                <span id="job-source-status-2" class="source-status" data-state="waiting">Waiting</span>
+              </span>
+              <input id="job-source-2" name="job-source-2" type="url" inputmode="url" placeholder="Optional public listing page" autocomplete="url" />
+            </label>
+            <label class="job-source-control" for="job-source-3">
+              <span class="job-source-label">
+                Job Source 3 URL
+                <span id="job-source-status-3" class="source-status" data-state="waiting">Waiting</span>
+              </span>
+              <input id="job-source-3" name="job-source-3" type="url" inputmode="url" placeholder="Optional public listing page" autocomplete="url" />
+            </label>
+            <label class="job-source-control" for="job-source-4">
+              <span class="job-source-label">
+                Job Source 4 URL
+                <span id="job-source-status-4" class="source-status" data-state="waiting">Waiting</span>
+              </span>
+              <input id="job-source-4" name="job-source-4" type="url" inputmode="url" placeholder="Optional public listing page" autocomplete="url" />
+            </label>
+            <label class="job-source-control" for="job-source-5">
+              <span class="job-source-label">
+                Job Source 5 URL
+                <span id="job-source-status-5" class="source-status" data-state="waiting">Waiting</span>
+              </span>
+              <input id="job-source-5" name="job-source-5" type="url" inputmode="url" placeholder="Optional public listing page" autocomplete="url" />
+            </label>
+          </div>
+          <div class="job-scout-actions">
+            <button id="scan-jobs" class="job-scout-button" type="submit">
+              Find Junior Opportunities
+            </button>
+            <button id="clear-jobs" class="clear-jobs-button" type="button">Clear Results</button>
+          </div>
+        </form>
+
+        <p id="job-scout-status" class="job-scout-status" role="status" aria-live="polite">
+          Ready to scan one to five public job pages.
+        </p>
+
+        <section id="job-results" class="job-results" aria-labelledby="job-results-title" aria-live="polite">
+          <div class="job-results-heading">
+            <div>
+              <p class="panel-kicker">Ranked for early-career potential</p>
+              <h3 id="job-results-title">Top 5 Junior Opportunities</h3>
+            </div>
+            <p id="job-result-count">No results yet</p>
+          </div>
+          <div id="job-result-list" class="job-result-list">
+            <div class="job-empty">
+              <p class="empty-number">05</p>
+              <p>Your evidence-backed shortlist will appear here.</p>
+            </div>
           </div>
         </section>
       </section>
