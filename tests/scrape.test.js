@@ -106,3 +106,41 @@ test("ordinary publishers retain automatic proxy behavior", async () => {
   assert.equal(response.statusCode, 200);
   assert.equal(requestBody.proxy, undefined);
 });
+
+test("TechCrunch boilerplate and markdown links are removed", async () => {
+  const response = await runScrape("https://techcrunch.com/example", {
+    success: true,
+    data: {
+      markdown: [
+        "[Skip to content](https://techcrunch.com/example/#content)",
+        "",
+        "Disrupt 2026: [25% off tickets](https://techcrunch.com/events)",
+        "",
+        "![Robot image](https://techcrunch.com/robot.jpg)**Image Credits:** Example",
+        "",
+        "# Example article title",
+        "",
+        "[Reporter Name](https://techcrunch.com/author/reporter)",
+        "",
+        "3:58 PM PDT · September 11, 2026",
+        "",
+        "[Share on Facebook](https://facebook.com/share)[Share on X](https://x.com/share)",
+        "",
+        "The first real article paragraph includes a [useful link](https://example.com).",
+        "",
+        "The second real article paragraph.",
+        "",
+        "AI news roundup | Equity Podcast",
+        "",
+        "0 seconds of 38 minutes, 5 secondsVolume 0%",
+      ].join("\n"),
+      metadata: { title: "Example article title" },
+    },
+  });
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(
+    response.body.content,
+    "The first real article paragraph includes a useful link.\n\nThe second real article paragraph.",
+  );
+});

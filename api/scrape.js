@@ -12,6 +12,16 @@ const BLOCKED_PAGE_PATTERNS = [
   /cloudflare ray id/i,
   /captcha/i,
 ];
+const TECHCRUNCH_BOILERPLATE_PATTERNS = [
+  /^\[?share on\b/i,
+  /^copy share link\b/i,
+  /^\d{1,2}:\d{2}\s+(?:am|pm)\s+[a-z]{2,4}\s+·/i,
+  /^\d+ seconds? of \d+ minutes?/i,
+  /^press shift question mark/i,
+  /^keyboard shortcuts/i,
+  /^(?:play\/pause|increase volume|decrease volume|seek forward|seek backward|captions on\/off|fullscreen)/i,
+  /\|\s*[^\n]*podcast\s*$/i,
+];
 
 function parseRequestBody(body) {
   if (!body) return {};
@@ -71,9 +81,42 @@ function validatePublicUrl(value) {
   }
 }
 
-function limitedContent(value) {
+function markdownToPlainText(value) {
+  return value
+    .replace(/!\[[^\]]*\]\([^\n)]*(?:\([^\n)]*\)[^\n)]*)*\)/g, "")
+    .replace(/\[([^\]]+)]\([^\n)]*(?:\([^\n)]*\)[^\n)]*)*\)/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/^>\s?/gm, "")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/__([^_]+)__/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/[ \t]+\n/g, "\n")
+    .trim();
+}
+
+function cleanTechCrunchContent(value) {
+  const blocks = value.replace(/\r\n?/g, "\n").split(/\n{2,}/);
+  const articleHeadingIndex = blocks.findIndex((block) => /^#\s+\S/m.test(block));
+  const articleBlocks = articleHeadingIndex >= 0 ? blocks.slice(articleHeadingIndex + 1) : blocks;
+
+  return articleBlocks
+    .map((block) => block.trim())
+    .filter(Boolean)
+    .filter((block) => !/^!\[[^\]]*]/.test(block))
+    .filter((block) => !/^\[[^\]]+]\([^\n]+\)$/.test(block))
+    .filter(
+      (block) =>
+        !TECHCRUNCH_BOILERPLATE_PATTERNS.some((pattern) => pattern.test(block)),
+    )
+    .join("\n\n");
+}
+
+function limitedContent(value, url) {
   if (typeof value !== "string") return "";
-  const clean = value.replace(/\n{3,}/g, "\n\n").trim();
+  const extracted = ENHANCED_PROXY_HOSTS.has(url.hostname.toLowerCase())
+    ? cleanTechCrunchContent(value)
+    : value;
+  const clean = markdownToPlainText(extracted).replace(/\n{3,}/g, "\n\n").trim();
   if (clean.length <= MAX_CONTENT_LENGTH) return clean;
   return `${clean.slice(0, MAX_CONTENT_LENGTH).trimEnd()}\n\n[…]`;
 }
@@ -176,7 +219,7 @@ export default async function handler(request, response) {
       // Keep the validated request hostname as a safe fallback.
     }
 
-    const content = limitedContent(payload.data.markdown);
+    const content = limitedContent(payload.data.markdown, validation.url);
     if (!content) {
       return response.status(502).json({
         error: "Deep Read could not find readable article content. Please open the original article.",
