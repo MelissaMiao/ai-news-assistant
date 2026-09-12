@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "node --check app.js && node --check api/news.js && node --check api/scrape.js"
+    "check": "node --check app.js && node --check api/news.js && node --check api/scrape.js",
+    "test": "node --test"
   },
   "engines": {
     "node": ">=20"

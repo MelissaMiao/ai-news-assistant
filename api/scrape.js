@@ -1,6 +1,17 @@
 const FIRECRAWL_ENDPOINT = "https://api.firecrawl.dev/v2/scrape";
 const REQUEST_TIMEOUT_MS = 50_000;
 const MAX_CONTENT_LENGTH = 6_000;
+const ENHANCED_PROXY_HOSTS = new Set(["techcrunch.com", "www.techcrunch.com"]);
+const BLOCKED_PAGE_PATTERNS = [
+  /challenges\.cloudflare\.com/i,
+  /cdn-cgi\/challenge-platform/i,
+  /verification (?:failed|expired)/i,
+  /just a moment\.\.\./i,
+  /enable javascript and cookies to continue/i,
+  /attention required[^\n]*cloudflare/i,
+  /cloudflare ray id/i,
+  /captcha/i,
+];
 
 function parseRequestBody(body) {
   if (!body) return {};
@@ -67,6 +78,39 @@ function limitedContent(value) {
   return `${clean.slice(0, MAX_CONTENT_LENGTH).trimEnd()}\n\n[…]`;
 }
 
+function isBlockedPage(data) {
+  const metadata = data?.metadata || {};
+  const pageText = [
+    metadata.title,
+    metadata.description,
+    metadata.ogTitle,
+    metadata.ogDescription,
+    data?.markdown,
+  ]
+    .filter((value) => typeof value === "string")
+    .join("\n")
+    .slice(0, 20_000);
+
+  return BLOCKED_PAGE_PATTERNS.some((pattern) => pattern.test(pageText));
+}
+
+function scrapeOptions(url) {
+  const options = {
+    url: url.href,
+    formats: ["markdown"],
+    onlyMainContent: true,
+    blockAds: true,
+  };
+
+  if (ENHANCED_PROXY_HOSTS.has(url.hostname.toLowerCase())) {
+    options.proxy = "enhanced";
+    options.location = { country: "US", languages: ["en-US"] };
+    options.waitFor = 1_500;
+  }
+
+  return options;
+}
+
 function safeUpstreamMessage(payload, apiKey) {
   const message = typeof payload?.error === "string" ? payload.error : "";
   if (!message) return "Firecrawl could not retrieve this page.";
@@ -104,11 +148,7 @@ export default async function handler(request, response) {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        url: validation.url.href,
-        formats: ["markdown"],
-        onlyMainContent: true,
-      }),
+      body: JSON.stringify(scrapeOptions(validation.url)),
       signal: controller.signal,
     });
     const payload = await firecrawlResponse.json().catch(() => ({}));
@@ -117,6 +157,13 @@ export default async function handler(request, response) {
       const status = firecrawlResponse.status === 429 ? 429 : 502;
       return response.status(status).json({
         error: safeUpstreamMessage(payload, apiKey),
+      });
+    }
+
+    if (isBlockedPage(payload.data)) {
+      return response.status(502).json({
+        error:
+          "This publisher blocked automated reading with a verification page. Please retry once or open the original article.",
       });
     }
 
@@ -129,12 +176,19 @@ export default async function handler(request, response) {
       // Keep the validated request hostname as a safe fallback.
     }
 
+    const content = limitedContent(payload.data.markdown);
+    if (!content) {
+      return response.status(502).json({
+        error: "Deep Read could not find readable article content. Please open the original article.",
+      });
+    }
+
     return response.status(200).json({
       title: metadata.title || metadata.ogTitle || validation.url.hostname,
       domain: resultDomain,
       url: resultUrl,
       description: metadata.description || metadata.ogDescription || "",
-      content: limitedContent(payload.data.markdown),
+      content,
     });
   } catch (error) {
     const message =
